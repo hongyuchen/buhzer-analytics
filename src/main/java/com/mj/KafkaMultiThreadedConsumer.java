@@ -39,7 +39,16 @@ public class KafkaMultiThreadedConsumer {
 								Message m = (Message) anyDeserialize(s);
 								updateDB(m);
 								for (int wi = 0; wi < 3; wi++) {
-									System.out.println("LINE " + wi + " has " + getCountFromRestaurantID(wi) + " people.");
+									int line_ct = getCountFromRestaurantID(wi);
+									int avg_time = getWaittimeFromRestaurantID(wi);
+									System.out.println("LINE " + wi + " has " + line_ct + " people.");
+									System.out.println("LINE " + wi + " averages " + avg_time + " secs per person.");
+									int total_time = line_ct * avg_time;
+									int hours = total_time / 3600;
+									int rmdr = total_time % 3600;
+									int mins = rmdr / 60;
+									int secs = rmdr % 60;
+									System.out.println("ESTIMATED WAIT TIME: " + hours + " hours, " + mins + " minutes, and " + secs + " seconds.");
 								}
 								System.out.println(tnum + " " + i + ": " + m.toString());
 								++i ;
@@ -49,6 +58,39 @@ public class KafkaMultiThreadedConsumer {
 							}
 	        	}
 			
+		}
+
+		public static int getWaittimeFromRestaurantID(int rid) throws SQLException {
+
+			String JDBC_DRIVER = "com.mysql.jdbc.Driver";
+			String DB_URL = "jdbc:mysql://localhost/buhzer";
+
+			String USER = "root";
+			String PASS = "1234";
+			
+			Connection conn = null;
+			PreparedStatement stmt = null;
+			ResultSet rs = null;
+
+
+			try {
+				Class.forName("com.mysql.jdbc.Driver");
+				conn = DriverManager.getConnection(DB_URL,USER,PASS);
+				System.out.println("Creating statement...");
+				stmt = conn.prepareStatement("SELECT AVG(timediff) AS AVG FROM timediffs WHERE RestaurantID = ?");
+				stmt.setInt(1, rid);
+				rs = stmt.executeQuery();
+			}
+			catch (Exception e) {
+				e.printStackTrace();
+			}
+				if (rs.next()) {
+					return rs.getInt("AVG");
+				}
+				else {
+					return -1;
+				}
+
 		}
 
 		public static int getCountFromRestaurantID(int rid) throws SQLException{
@@ -119,6 +161,52 @@ public class KafkaMultiThreadedConsumer {
 				}
 		}
 
+		public static void updateTimeDiff(int userId, int waitlistId, int timeDiff) {
+			String JDBC_DRIVER = "com.mysql.jdbc.Driver";
+			String DB_URL = "jdbc:mysql://localhost/buhzer";
+
+			String USER = "root";
+			String PASS = "1234";
+			
+			Connection conn = null;
+			PreparedStatement stmt = null;
+
+			try {
+
+				Class.forName("com.mysql.jdbc.Driver");
+				conn = DriverManager.getConnection(DB_URL,USER,PASS);
+				System.out.println("Creating statement...");
+
+				stmt = conn.prepareStatement("INSERT INTO timediffs (restaurantID, userId, timediff) values (?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
+				stmt.setInt(1, waitlistId);
+				stmt.setString(2, "" + userId);
+				stmt.setInt(3, timeDiff);
+				stmt.executeUpdate();
+
+			 }catch(SQLException se){
+					se.printStackTrace();
+			 }catch(Exception e){
+					e.printStackTrace();
+			 }finally{
+					try{
+						 if(stmt!=null)
+								stmt.close();
+					}catch(SQLException se2){
+					}
+					try{
+						 if(conn!=null)
+								conn.close();
+					}catch(SQLException se){
+						 se.printStackTrace();
+					}
+			 }
+			
+		}
+		
+		
+		
+
+
 	  public static void updateDB(Message m) throws SQLException{
 
 			String JDBC_DRIVER = "com.mysql.jdbc.Driver";
@@ -144,7 +232,9 @@ public class KafkaMultiThreadedConsumer {
 						stmt.executeUpdate();
 						break;
 					case REMOVE:
-						System.out.println("SECONDS: " + getTimeDiffFromLeave(m.userID, m.waitlistID));
+						int timeDiff = getTimeDiffFromLeave(m.userID, m.waitlistID);
+						System.out.println("SECONDS: " + timeDiff);
+					  updateTimeDiff(m.userID, m.waitlistID, timeDiff);
 						stmt = conn.prepareStatement("DELETE FROM queues WHERE restaurantId = ? AND userId = ?");
 						stmt.setInt(1, m.waitlistID);
 						stmt.setString(2, "" + m.userID);
