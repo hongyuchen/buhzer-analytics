@@ -30,6 +30,10 @@ public class KafkaMultiThreadedConsumer {
 		
 		public void run() {
 			System.out.println("This is thread " + tnum) ;
+
+			try {
+
+			BuhzerAnalytics ba = new BuhzerAnalytics();//new
 			
 			ConsumerIterator<byte[], byte[]> it = kfs.iterator();
 				int i = 1 ;
@@ -37,18 +41,9 @@ public class KafkaMultiThreadedConsumer {
 							try {
 								String s = new String(it.next().message());
 								Message m = (Message) anyDeserialize(s);
-								updateDB(m);
+								ba.updateDB(m);
 								for (int wi = 0; wi < 3; wi++) {
-									int line_ct = getCountFromRestaurantID(wi);
-									int avg_time = getWaittimeFromRestaurantID(wi);
-									System.out.println("LINE " + wi + " has " + line_ct + " people.");
-									System.out.println("LINE " + wi + " averages " + avg_time + " secs per person.");
-									int total_time = line_ct * avg_time;
-									int hours = total_time / 3600;
-									int rmdr = total_time % 3600;
-									int mins = rmdr / 60;
-									int secs = rmdr % 60;
-									System.out.println("ESTIMATED WAIT TIME: " + hours + " hours, " + mins + " minutes, and " + secs + " seconds.");
+									System.out.println("Estimated wait time for line " + wi + " - " + ba.estimateAsString(wi));
 								}
 								System.out.println(tnum + " " + i + ": " + m.toString());
 								++i ;
@@ -57,6 +52,10 @@ public class KafkaMultiThreadedConsumer {
 								e.printStackTrace();
 							}
 	        	}
+			}
+			catch (Exception e) {
+				e.printStackTrace();
+			}
 			
 		}
 

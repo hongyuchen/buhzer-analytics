@@ -1,0 +1,5 @@
+mysql> CREATE TABLE timediffs(id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, restaurantId INT NOT NULL, userId INT NOT NULL, timediff INT NOT NULL);
+Query OK, 0 rows affected (0.01 sec)
+
+mysql> CREATE TABLE queues (id INT(10) NOT NULL AUTO_INCREMENT PRIMARY KEY, restaurantId INT(10), userId INT(10), created TIMESTAMP, CONSTRAINT puq UNIQUE(restaurantId, userId));
+Query OK, 0 rows affected (0.01 sec)

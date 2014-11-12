@@ -32,13 +32,11 @@ class Message implements Serializable{
 public class KafkaProducer {
 
 	public static void main(String[] args) throws Exception{
-		// TODO Auto-generated method stub
 		
-		Properties props = new Properties();
+		/*Properties props = new Properties();
 		 
 		props.put("metadata.broker.list", "localhost:9092,localhost:9093,localhost:9094");
 		props.put("serializer.class", "kafka.serializer.StringEncoder");
-		// props.put("partitioner.class", "example.producer.SimplePartitioner");
 		props.put("request.required.acks", "1");
 		 
 		ProducerConfig config = new ProducerConfig(props);
@@ -46,12 +44,12 @@ public class KafkaProducer {
 		Producer<String, String> producer = new Producer<String, String>(config);
 		
 		String date = "04092014" ;
-		// String topic = "my-replicated-topic" ;
-		String topic = "mytopic" ;
+		String topic = "mytopic" ;*/
 
 
 		ArrayList<Integer> rids = new ArrayList<Integer>();
 		ArrayList<Integer> cids = new ArrayList<Integer>();
+		BuhzerAnalytics ba = new BuhzerAnalytics(); //new
 
 		Random random = new Random();
 		int iteration = 0;
@@ -73,28 +71,23 @@ public class KafkaProducer {
 				int cid = cids.get(rmidx);
 				rids.remove(rmidx);
 				cids.remove(rmidx);
-				Message m = new Message(
-						cid,
-						rid,
-						WaitlistAction.REMOVE);
-				KeyedMessage<String, String> data = new KeyedMessage<String, String>(topic, String.valueOf(iteration), anySerialize(m));
-				producer.send(data);
-				System.out.println(iteration + "|" + rid + "|" + cid);
+				ba.send(rid, cid, true);
 				 
 			}
 			else {
 				int nrid = random.nextInt(3);
 				int ncid = random.nextInt(1000);
-				rids.add(nrid);
-				cids.add(ncid);
-				Message m = new Message(
-						ncid,
-						nrid,
-						WaitlistAction.ADD);
-				KeyedMessage<String, String> data = new KeyedMessage<String, String>(topic, String.valueOf(iteration), anySerialize(m));
-				producer.send(data);
-				System.out.println(iteration + "|" + nrid + "|" + ncid);
-
+				boolean dupflag = false;
+				for (int i = 0; i < rids.size(); i++) {
+					if (rids.get(i) == nrid && cids.get(i) == ncid) {
+						dupflag = true;
+					}
+				}
+				if (!dupflag) {
+					rids.add(nrid);
+					cids.add(ncid);
+					ba.send(nrid, ncid, false); 
+				}
 			}
 				
 
