@@ -12,6 +12,12 @@ import kafka.producer.ProducerConfig;
 
 import javax.xml.bind.DatatypeConverter; 
 
+/**
+ * The BuhzerAnalytics class handles the computation for Buhzer and connects with the
+ * MySQL database.
+ * @author hchen
+ */
+
 public class BuhzerAnalytics {
 
 	 private Producer<String, String> producer;
@@ -19,6 +25,7 @@ public class BuhzerAnalytics {
 	 private String topic;
 	 private int iteration;
 
+	 /** Access information for mysql database. */
 	 private final String JDBC_DRIVER = "com.mysql.jdbc.Driver";
 	 private final String DB_URL = "jdbc:mysql://localhost/buhzer";
 	 private final String USER = "root";
@@ -26,6 +33,7 @@ public class BuhzerAnalytics {
 	 
 	 private Connection conn;
 
+	 /** Initializes BuhzerAnalytics class. */
    public BuhzerAnalytics() throws Exception{
 			Properties props = new Properties();
 			 
@@ -45,6 +53,7 @@ public class BuhzerAnalytics {
 			conn = DriverManager.getConnection(DB_URL,USER,PASS);
 	 }
 
+	 /** Closes the connection. */
 	 public void close() {
 				try{
 					 if(conn!=null)
@@ -55,6 +64,7 @@ public class BuhzerAnalytics {
 	 }
 
 	 
+	 /** Sends an incoming request to Kafka. Requires restaurantID, userID, and Add/Remove command*/
    public void send(int rid, int cid, boolean remove) throws Exception{
 
 		Message m = new Message(
@@ -62,12 +72,13 @@ public class BuhzerAnalytics {
 			rid,
 			remove ? WaitlistAction.REMOVE : WaitlistAction.ADD);
 
-		KeyedMessage<String, String> data = new KeyedMessage<String, String>(topic, String.valueOf(iteration), KafkaProducer.anySerialize(m));
+		KeyedMessage<String, String> data = new KeyedMessage<String, String>(topic, String.valueOf(iteration), Serializer.anySerialize(m));
 		producer.send(data); 
 		System.out.println(iteration + "|" + rid + "|" + cid);
 		iteration += 1;
 	 }
 
+	 /** Estimates wait time given a restaurantID. */
 	 public int estimate(int rid) throws SQLException {
 			int line_ct = getCountFromRestaurantID(rid);
 			int avg_time = getWaittimeFromRestaurantID(rid);
@@ -75,6 +86,7 @@ public class BuhzerAnalytics {
 			return total_time;
 	 }
 
+	 /** Outputs time estimate as a string in HH:MM:SS format. */
 	 public String estimateAsString(int rid) throws SQLException{
 			int total_time = estimate(rid);
 			int hours = total_time / 3600;
@@ -86,6 +98,7 @@ public class BuhzerAnalytics {
 
 
 	 
+	 /** Outputs average wait time from restaurantID. */
 	public int getWaittimeFromRestaurantID(int rid) throws SQLException {
 
 		PreparedStatement stmt = null;
@@ -108,6 +121,7 @@ public class BuhzerAnalytics {
 		}
 	}
 
+	/** Gets the number of people in a restaurant line */
 	public int getCountFromRestaurantID(int rid) throws SQLException{
 
 		PreparedStatement stmt = null;
@@ -131,6 +145,7 @@ public class BuhzerAnalytics {
 
 	}
 
+	/** Gets the time that a user spent in a restaurant when that person leaves. */
 	public int getTimeDiffFromLeave(int cid, int rid) throws SQLException {
 
 		PreparedStatement stmt = null;
@@ -153,6 +168,7 @@ public class BuhzerAnalytics {
 			}
 	}
 
+	/** Updates time differences when a person leaves. */
 	public void updateTimeDiff(int userId, int waitlistId, int timeDiff) throws SQLException {
 		PreparedStatement stmt = null;
 
@@ -178,6 +194,7 @@ public class BuhzerAnalytics {
 		
 	}
 
+	/** Updates the database when an incoming request is handled. */
 	public void updateDB(Message m) throws SQLException {
 
 		PreparedStatement stmt = null;
@@ -193,7 +210,6 @@ public class BuhzerAnalytics {
 					break;
 				case REMOVE:
 					int timeDiff = getTimeDiffFromLeave(m.userID, m.waitlistID);
-					System.out.println("SECONDS: " + timeDiff);
 					updateTimeDiff(m.userID, m.waitlistID, timeDiff);
 					stmt = conn.prepareStatement("DELETE FROM queues WHERE restaurantId = ? AND userId = ?");
 					stmt.setInt(1, m.waitlistID);

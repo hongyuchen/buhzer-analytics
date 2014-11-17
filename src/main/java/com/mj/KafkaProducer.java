@@ -10,53 +10,26 @@ import kafka.producer.ProducerConfig;
 
 import javax.xml.bind.DatatypeConverter; 
 
-enum WaitlistAction {
-	ADD,
-	REMOVE
-}
-
-class Message implements Serializable{
-	public int userID;
-	public int waitlistID;
-	public WaitlistAction action;
-	public Message(int u, int w, WaitlistAction a) {
-		userID = u;
-		waitlistID = w;
-		action = a;
-	}
-	public String toString() {
-		return "USER_ID:" + userID + "|WAITLIST_ID:" + waitlistID;
-	}
-}
+/** 
+ * The KafkaProducer class sends random queries to the consumer on a
+ * periodic basis. Used for testing purposes only.
+ * @author hchen
+ */
 
 public class KafkaProducer {
 
 	public static void main(String[] args) throws Exception{
 		
-		/*Properties props = new Properties();
-		 
-		props.put("metadata.broker.list", "localhost:9092,localhost:9093,localhost:9094");
-		props.put("serializer.class", "kafka.serializer.StringEncoder");
-		props.put("request.required.acks", "1");
-		 
-		ProducerConfig config = new ProducerConfig(props);
-		
-		Producer<String, String> producer = new Producer<String, String>(config);
-		
-		String date = "04092014" ;
-		String topic = "mytopic" ;*/
-
-
 		ArrayList<Integer> rids = new ArrayList<Integer>();
 		ArrayList<Integer> cids = new ArrayList<Integer>();
-		BuhzerAnalytics ba = new BuhzerAnalytics(); //new
+		BuhzerAnalytics ba = new BuhzerAnalytics(); 
 
 		Random random = new Random();
 		int iteration = 0;
 
 		while (true) {
 			try {
-				    Thread.sleep(1000);                 //1000 milliseconds is one second.
+				    Thread.sleep(1000);                 
 			} catch(InterruptedException ex) {
 				    Thread.currentThread().interrupt();
 			}
@@ -100,21 +73,5 @@ public class KafkaProducer {
 
 	}
 
-public static String anySerialize(Object o) throws IOException { 
-                ByteArrayOutputStream baos = new ByteArrayOutputStream(); 
-                ObjectOutputStream oos = new ObjectOutputStream(baos); 
-                oos.writeObject(o); 
-                oos.close(); 
-                return DatatypeConverter.printBase64Binary(baos.toByteArray()); 
-        } 
-        public static Object anyDeserialize(String s) throws IOException, 
-ClassNotFoundException { 
-                ByteArrayInputStream bais = new 
-ByteArrayInputStream(DatatypeConverter.parseBase64Binary(s)); 
-                ObjectInputStream ois = new ObjectInputStream(bais); 
-                Object o = ois.readObject(); 
-                ois.close(); 
-                return o; 
-        } 
 
 }

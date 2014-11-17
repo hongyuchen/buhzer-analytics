@@ -14,6 +14,13 @@ import java.util.concurrent.Executors;
 
 import javax.xml.bind.DatatypeConverter; 
 
+/** 
+ * The KafkaMultiThreadedConsumer class takes incoming requests from 
+ * a producer and processes the information. Debugging results are
+ * shown in the terminal
+ * @author hchen
+ */
+
 public class KafkaMultiThreadedConsumer {
 	
 	
@@ -40,7 +47,7 @@ public class KafkaMultiThreadedConsumer {
 	        	while (it.hasNext()) {
 							try {
 								String s = new String(it.next().message());
-								Message m = (Message) anyDeserialize(s);
+								Message m = (Message) Serializer.anyDeserialize(s);
 								ba.updateDB(m);
 								for (int wi = 0; wi < 3; wi++) {
 									System.out.println("Estimated wait time for line " + wi + " - " + ba.estimateAsString(wi));
@@ -58,215 +65,8 @@ public class KafkaMultiThreadedConsumer {
 			}
 			
 		}
-
-		public static int getWaittimeFromRestaurantID(int rid) throws SQLException {
-
-			String JDBC_DRIVER = "com.mysql.jdbc.Driver";
-			String DB_URL = "jdbc:mysql://localhost/buhzer";
-
-			String USER = "root";
-			String PASS = "1234";
-			
-			Connection conn = null;
-			PreparedStatement stmt = null;
-			ResultSet rs = null;
-
-
-			try {
-				Class.forName("com.mysql.jdbc.Driver");
-				conn = DriverManager.getConnection(DB_URL,USER,PASS);
-				System.out.println("Creating statement...");
-				stmt = conn.prepareStatement("SELECT AVG(timediff) AS AVG FROM timediffs WHERE RestaurantID = ?");
-				stmt.setInt(1, rid);
-				rs = stmt.executeQuery();
-			}
-			catch (Exception e) {
-				e.printStackTrace();
-			}
-				if (rs.next()) {
-					return rs.getInt("AVG");
-				}
-				else {
-					return -1;
-				}
-
-		}
-
-		public static int getCountFromRestaurantID(int rid) throws SQLException{
-
-			String JDBC_DRIVER = "com.mysql.jdbc.Driver";
-			String DB_URL = "jdbc:mysql://localhost/buhzer";
-
-			String USER = "root";
-			String PASS = "1234";
-			
-			Connection conn = null;
-			PreparedStatement stmt = null;
-			ResultSet rs = null;
-
-
-			try {
-				Class.forName("com.mysql.jdbc.Driver");
-				conn = DriverManager.getConnection(DB_URL,USER,PASS);
-				System.out.println("Creating statement...");
-				stmt = conn.prepareStatement("SELECT COUNT(*) AS COUNT FROM queues WHERE RestaurantID = ?");
-				stmt.setInt(1, rid);
-				rs = stmt.executeQuery();
-			}
-			catch (Exception e) {
-				e.printStackTrace();
-			}
-				if (rs.next()) {
-					return rs.getInt("COUNT");
-				}
-				else {
-					return -1;
-				}
-		}
-
-
-
-
-		
-		public static int getTimeDiffFromLeave(int cid, int rid) throws SQLException {
-			String JDBC_DRIVER = "com.mysql.jdbc.Driver";
-			String DB_URL = "jdbc:mysql://localhost/buhzer";
-
-			String USER = "root";
-			String PASS = "1234";
-			
-			Connection conn = null;
-			PreparedStatement stmt = null;
-			ResultSet rs = null;
-
-
-			try {
-				Class.forName("com.mysql.jdbc.Driver");
-				conn = DriverManager.getConnection(DB_URL,USER,PASS);
-				System.out.println("Creating statement...");
-				stmt = conn.prepareStatement("SELECT TIME_TO_SEC(TIMEDIFF(now(), created)) as SECONDS from queues where restaurantId = ? and userId = ?;");
-				stmt.setInt(1, rid);
-				stmt.setInt(2, cid);
-				rs = stmt.executeQuery();
-			}
-			catch (Exception e) {
-				e.printStackTrace();
-			}
-				if (rs.next()) {
-					return rs.getInt("SECONDS");
-				}
-				else {
-					return -1;
-				}
-		}
-
-		public static void updateTimeDiff(int userId, int waitlistId, int timeDiff) {
-			String JDBC_DRIVER = "com.mysql.jdbc.Driver";
-			String DB_URL = "jdbc:mysql://localhost/buhzer";
-
-			String USER = "root";
-			String PASS = "1234";
-			
-			Connection conn = null;
-			PreparedStatement stmt = null;
-
-			try {
-
-				Class.forName("com.mysql.jdbc.Driver");
-				conn = DriverManager.getConnection(DB_URL,USER,PASS);
-				System.out.println("Creating statement...");
-
-				stmt = conn.prepareStatement("INSERT INTO timediffs (restaurantID, userId, timediff) values (?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
-				stmt.setInt(1, waitlistId);
-				stmt.setString(2, "" + userId);
-				stmt.setInt(3, timeDiff);
-				stmt.executeUpdate();
-
-			 }catch(SQLException se){
-					se.printStackTrace();
-			 }catch(Exception e){
-					e.printStackTrace();
-			 }finally{
-					try{
-						 if(stmt!=null)
-								stmt.close();
-					}catch(SQLException se2){
-					}
-					try{
-						 if(conn!=null)
-								conn.close();
-					}catch(SQLException se){
-						 se.printStackTrace();
-					}
-			 }
-			
-		}
-		
-		
-		
-
-
-	  public static void updateDB(Message m) throws SQLException{
-
-			String JDBC_DRIVER = "com.mysql.jdbc.Driver";
-			String DB_URL = "jdbc:mysql://localhost/buhzer";
-
-			String USER = "root";
-			String PASS = "1234";
-			
-			Connection conn = null;
-			PreparedStatement stmt = null;
-
-			try {
-
-				Class.forName("com.mysql.jdbc.Driver");
-				conn = DriverManager.getConnection(DB_URL,USER,PASS);
-				System.out.println("Creating statement...");
-
-				switch (m.action) {
-					case ADD:
-						stmt = conn.prepareStatement("INSERT INTO queues (restaurantID, userId) values (?, ?)", Statement.RETURN_GENERATED_KEYS);
-						stmt.setInt(1, m.waitlistID);
-						stmt.setString(2, "" + m.userID);
-						stmt.executeUpdate();
-						break;
-					case REMOVE:
-						int timeDiff = getTimeDiffFromLeave(m.userID, m.waitlistID);
-						System.out.println("SECONDS: " + timeDiff);
-					  updateTimeDiff(m.userID, m.waitlistID, timeDiff);
-						stmt = conn.prepareStatement("DELETE FROM queues WHERE restaurantId = ? AND userId = ?");
-						stmt.setInt(1, m.waitlistID);
-						stmt.setString(2, "" + m.userID);
-						stmt.executeUpdate();
-						break;
-					default:
-						System.out.println("Unknown command.");
-						System.out.println(m.action);
-
-				}
-			 }catch(SQLException se){
-					se.printStackTrace();
-			 }catch(Exception e){
-					e.printStackTrace();
-			 }finally{
-					try{
-						 if(stmt!=null)
-								stmt.close();
-					}catch(SQLException se2){
-					}
-					try{
-						 if(conn!=null)
-								conn.close();
-					}catch(SQLException se){
-						 se.printStackTrace();
-					}
-			 }
-			
-		}
-		
-		
-		
 	}
+
 	
 	
 	public static class MultiKafka {
@@ -321,23 +121,6 @@ public class KafkaMultiThreadedConsumer {
         // consumer.shutdown(); 
 	}
 
-public static String anySerialize(Object o) throws IOException { 
-                ByteArrayOutputStream baos = new ByteArrayOutputStream(); 
-                ObjectOutputStream oos = new ObjectOutputStream(baos); 
-                oos.writeObject(o); 
-                oos.close(); 
-                return DatatypeConverter.printBase64Binary(baos.toByteArray()); 
-        } 
-
-        public static Object anyDeserialize(String s) throws IOException, 
-ClassNotFoundException { 
-                ByteArrayInputStream bais = new 
-ByteArrayInputStream(DatatypeConverter.parseBase64Binary(s)); 
-                ObjectInputStream ois = new ObjectInputStream(bais); 
-                Object o = ois.readObject(); 
-                ois.close(); 
-                return o; 
-        } 
 	
 	
 
